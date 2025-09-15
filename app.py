@@ -1,0 +1,40 @@
+import mlflow
+import pandas as pd
+from fastapi import FastAPI
+from pydantic import BaseModel
+
+mlflow.set_tracking_uri(uri="http://127.0.0.1:5000")
+
+loaded_model = mlflow.pyfunc.load_model("models:/tracking-quickstart/2")
+
+app = FastAPI()
+
+
+class Numbers(BaseModel):
+    sepal_length: float
+    sepal_width: float
+    petal_length: float
+    petal_width: float
+
+
+@app.post("/predict")
+async def model_predict(numbers: Numbers):
+    X = pd.DataFrame(
+        [
+            [
+                numbers.sepal_length,
+                numbers.sepal_width,
+                numbers.petal_length,
+                numbers.petal_width,
+            ]
+        ]
+    )
+    result = loaded_model.predict(X)
+    return {"y_pred": int(result)}
+
+
+@app.post("/update-model")
+async def update_model(version: int):
+    global loaded_model
+    loaded_model = mlflow.pyfunc.load_model(f"models:/tracking-quickstart/{version}")
+    return {"response": "OK"}
