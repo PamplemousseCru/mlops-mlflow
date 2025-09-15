@@ -1,4 +1,5 @@
 import os
+import random
 
 import pandas as pd
 from fastapi import FastAPI
@@ -8,8 +9,8 @@ import mlflow
 
 mlflow.set_tracking_uri(uri=os.getenv("MLFLOW_TRACKING_URI", "http://127.0.0.1:5000"))
 
-
-loaded_model = mlflow.pyfunc.load_model("models:/tracking-quickstart/2")
+current_model = mlflow.pyfunc.load_model("models:/tracking-quickstart/2")
+next_model = mlflow.pyfunc.load_model("models:/tracking-quickstart/2")
 
 app = FastAPI()
 
@@ -33,12 +34,24 @@ async def model_predict(numbers: Numbers):
             ]
         ]
     )
-    result = loaded_model.predict(X)
+
+    p = 0.3
+    if random.random() <= p:
+        result = current_model.predict(X)
+    else:
+        result = next_model.predict(X)
     return {"y_pred": int(result)}
 
 
 @app.post("/update-model")
 async def update_model(version: int):
-    global loaded_model
-    loaded_model = mlflow.pyfunc.load_model(f"models:/tracking-quickstart/{version}")
+    global next_model
+    next_model = mlflow.pyfunc.load_model(f"models:/tracking-quickstart/{version}")
+    return {"response": "OK"}
+
+
+@app.post("/accept-next-mode")
+async def update_model():
+    global current_model
+    current_model = next_model
     return {"response": "OK"}
